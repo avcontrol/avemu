@@ -1,40 +1,56 @@
 # Agent Instructions
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+See **[../AGENTS.md](../AGENTS.md)** for shared instructions across all avcontrol projects.
 
-## Quick Reference
+---
+
+## Project Overview
+
+**avemu** is a device emulator for A/V equipment protocols. It enables testing Home Assistant integrations and pyavcontrol without physical hardware.
+
+---
+
+## Architecture
+
+| Component | Purpose |
+|-----------|---------|
+| Emulator core | Protocol simulation engine |
+| Device profiles | YAML-based device behavior definitions |
+| Transport layer | RS-232/TCP connection handling |
+
+---
+
+## Development
+
+### Running the Emulator
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
+uv sync
+uv run avemu --device mcintosh/mx160 --port 4999
 ```
 
-## Landing the Plane (Session Completion)
+### Adding Device Emulation
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+Device emulation profiles should match the YAML structure in `avcontrol/pyavcontrol/protocols/`. The emulator uses:
 
-**MANDATORY WORKFLOW:**
+- Command patterns from YAML
+- Response templates
+- State machine definitions
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+### Testing
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+```bash
+uv run pytest tests/ -v
+```
 
+---
+
+## Quality Gates
+
+Before committing:
+
+```bash
+uv run pytest tests/ -v
+uv run ruff check .
+uv run mypy .
+```
