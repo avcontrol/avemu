@@ -1,23 +1,25 @@
-FROM python:3.13-rc-slim as build
+# avemu - A/V Equipment Emulator
+FROM python:3.12-slim AS build
 
-ARG device_model=mcintosh_mx160
+ARG DEVICE_MODEL=mcintosh/mx160
 
-# install git
+# install build dependencies
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git \
- && apt-get purge -y --auto-remove \
- && rm -rf /var/lib/apt/lists/*
-
-# update Python
-RUN pip install --upgrade pip
+    && apt-get install -y --no-install-recommends git \
+    && apt-get purge -y --auto-remove \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-RUN git clone https://github.com/rsnodgrass/avemu.git /app  \
- && pip3 install --no-cache-dir -r "/app/requirements.txt" \
- && rm -rf /root/.cache /var/cache
+# copy and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
+# copy application code
+COPY avemu.py .
 
 EXPOSE 4999
 
-CMD [ "./avemu", "--model", $device_model ]
+# use shell form to expand variable
+CMD python avemu.py --model ${DEVICE_MODEL}

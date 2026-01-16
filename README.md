@@ -1,4 +1,4 @@
-# avemu - Test Emulator for A/V Equipment RS232 Control
+# AVEmu - Emulator for A/V Equipment RS232 Control Testing
 
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 ![beta_badge](https://img.shields.io/badge/maturity-Beta-yellow.png)
@@ -7,33 +7,140 @@
 
 ## Overview
 
-Avemu exposes a TCP port that can emulate responses to commands sent using simple text based
-(typically RS232 compatible) protocols used by various A/V equipment so testing common cases can
-occur without requiring physical hardware. This came about developing client libraries for
-controlling McIntosh, Lyngdorf, Xantech, and Anthem processors where the protocols were basic
-text based interactions and similar. After building several custom libraries, a "common" YAML
-based protocol definition format was created so building additional librares was not necessary.
+AVEmu exposes a TCP port that emulates responses to commands for A/V equipment using
+[pyavcontrol](https://github.com/rsnodgrass/pyavcontrol) protocol definitions. This enables
+testing client libraries and Home Assistant integrations without requiring physical hardware.
 
-Additionally, the [pyavcontrol](https://github.com/rsnodgrass/pyavcontrol) YAML format defining
-commands, messages, and simple tests enables quickly spinning up libraries in other languages
-(Go, C, etc) that support a wide variety of devices.
+![avemu demo](demo/avemu-demo.gif)
 
-### Support
+Key features:
 
-While this is community supported along with all the 'pyavcontrol', effort was involved in creating
-this tool and new way of defining A/V equipment control interfaces to make emulation and client
-libraries possible. Please consider contributing a small token of thanks:
+- **Stateful emulation** - Maintains device state (power, volume, playback) between commands
+- **Protocol-accurate responses** - Uses pyavcontrol YAML definitions for exact response formats
+- **Multiple formats** - Supports both slash (`mcintosh/mx160`) and underscore (`mcintosh_mx160`) model IDs
+- **Auto port detection** - Uses device's default IP port when available
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=WREP29UDAMB6G)
-[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/DYks67r)
+## How It Works
 
-If you have questions or need the help of others, please participate in the community discussion. **(LINK TO BE ADDED)**
+```mermaid
+flowchart LR
+    subgraph Client ["Test Client"]
+        A[Your App / HA Integration]
+    end
 
-### Supported Devices
+    subgraph Emulator ["avemu"]
+        B[TCP Server<br/>port 84/4999]
+        C[EmulatorClient]
+        D[Device State<br/>power, volume, etc.]
+    end
 
-See [SUPPORTED.md](https://github.com/rsnodgrass/pyavcontrol/blob/main/SUPPORTED.md) for the
-complete list of supported devices. If interested in submitting YAML file defining the model for
-new devices, contribute through pyavcontrol and avemu will automatically include the new device.
+    subgraph Protocol ["pyavcontrol"]
+        E[Protocol YAML<br/>mcintosh/mx160.yaml]
+    end
+
+    A -->|"!POWER?"| B
+    B --> C
+    C <--> D
+    C <--> E
+    B -->|"!POWER(ON)"| A
+
+    style B fill:#4a9eff,color:#fff
+    style C fill:#28a745,color:#fff
+    style D fill:#ffc107,color:#000
+    style E fill:#6f42c1,color:#fff
+```
+
+**Flow:**
+1. Client connects to AVEmu's TCP server
+2. Commands are parsed by `EmulatorClient` using protocol YAML definitions
+3. Device state is updated and tracked between commands
+4. Protocol-accurate responses are generated and returned
+
+## Installation
+
+```bash
+pip install avemu
+```
+
+Or for development:
+
+```bash
+git clone https://github.com/rsnodgrass/avemu.git
+cd avemu
+pip install -e .
+```
+
+## Usage
+
+### List Supported Models
+
+```bash
+python avemu.py --supported
+```
+
+### Start Emulator
+
+```bash
+# using slash format (preferred)
+python avemu.py --model mcintosh/mx160
+
+# using underscore format (backward compatible)
+python avemu.py --model mcintosh_mx160
+
+# specify custom port
+python avemu.py --model lyngdorf/cd2 --port 5000
+
+# enable debug logging
+python avemu.py --model mcintosh/mx160 --debug
+```
+
+### Connect to Emulator
+
+```bash
+# using netcat
+nc localhost 84
+
+# send commands
+!POWER?
+!POWER(1)
+!VOL?
+```
+
+## Example Session
+
+```console
+$ python avemu.py --model mcintosh/mx160
+2025-01-13 laptop __main__ INFO loaded protocol: manufacturer=McIntosh, model=MX160
+2025-01-13 laptop __main__ INFO using device default port: port=84
+2025-01-13 laptop __main__ INFO emulating mcintosh/mx160 on socket://0.0.0.0:84/
+
+# In another terminal:
+$ nc localhost 84
+!POWER?
+!POWER(0)
+!POWER(1)
+!POWER OK
+!VOL?
+!VOL(50)
+```
+
+## Docker
+
+```bash
+# build with default model
+docker build -t avemu .
+
+# build with specific model
+docker build --build-arg DEVICE_MODEL=lyngdorf/cd2 -t avemu .
+
+# run
+docker run -p 4999:4999 avemu
+```
+
+## Supported Devices
+
+See [pyavcontrol SUPPORTED.md](https://github.com/rsnodgrass/pyavcontrol/blob/main/SUPPORTED.md)
+for the complete list. Devices are defined in YAML format - contributions welcome.
 
 | Manufacturer | Models              |
 |--------------|---------------------|
@@ -44,39 +151,25 @@ new devices, contribute through pyavcontrol and avemu will automatically include
 | HDFury       | VRROOM              |
 | ...and more  |                     |
 
-## Example Execution
+## Support
 
-The following is an example run `avemu` with the Lyngdorf CD-2 `lyngdorf_cd2` model from [pyavcontrol](https://github.com/rsnodgrass/pyavcontrol/):
+If you find this tool useful, please consider contributing:
 
-```console
-% ./avemu.py --model lyngdorf_cd2
-2023-12-27 22:17:46 laptop.local __main__[38770] INFO Using default port 84 for lyngdorf_cd2
-2023-12-27 22:17:46 laptop.local __main__[38770] INFO Emulating model lyngdorf_cd2 on socket://0.0.0.0:84/  (also on 192.168.1.25)
-Supported commands:
-!DEVICE?                      !ON                           !OFF                          !PWR
-!NEXT                         !PLAY                         !STOP                         !PREV
-!EJECT                        !REWIND                       !WIND                         !STOPWIND
-!STATE?                       !DIGIT(1)                     !DIGIT(2)                     !TRACK?
-!NOFTRACKS?                   !TIME?                        !REMTIME?                     !PLAYMODE({mode})
-!PLAYMODE(0)                  !PLAYMODE(1)                  !PLAYMODE(2)                  !PLAYMODE(3)
-!DISPMODE({mode})             !DISPMODE(0)                  !DISPMODE(1)                  !DISPMODE(2)
-!DISPMODE(3)                  !SAMPLERATE({sample_rate})    !GAIN({gain})                 !SRC?
-2023-12-27 22:17:50 laptop.local __main__[38770] INFO 192.168.1.125:57620 connected.
-2023-12-27 22:17:50 laptop.local __main__[38770] INFO 192.168.1.125:57620 connected.
-2023-12-27 22:17:50 laptop.local __main__[38770] DEBUG Received: !DEVICE?
-2023-12-27 22:17:50 laptop.local handlers.default[38770] INFO Received device.name cmd: !DEVICE?
-2023-12-27 22:17:50 laptop.local handlers.default[38770] DEBUG Replying to device.name !DEVICE?: !DEVICE(CD2)
-2023-12-27 22:17:50 laptop.local __main__[38770] DEBUG Received: !SRC?
-2023-12-27 22:17:50 laptop.local handlers.default[38770] INFO Received source.get cmd: !SRC?
-2023-12-27 22:17:50 laptop.local handlers.default[38770] DEBUG Replying to source.get !SRC?: !SRC(1,"CD")
-```
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=WREP29UDAMB6G)
+[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/DYks67r)
 
-# Future Ideas
+## License
 
-- Add ability to define EmulatorHandler class for each device model that allows additional programmatic
-  override of handle_command() which can maintain state between calls for someone who wants to implement
-  functionality where later queries should pickup previously set state.
+AVEmu is released under the Business Source License (BSL).
 
-# See Also
+- ✅ Free for home, hobby, and non-commercial use
+- ✅ Free for Home Assistant users who are not charging for services
+- 💼 Paid license required if you use AVEmu commercially
 
-- [pyavcontrol](https://github.com/rsnodgrass/pyavcontrol)
+If you make money using AVEmu, we ask that you support the project by
+purchasing a commercial license.
+
+## See Also
+
+- [pyavcontrol](https://github.com/rsnodgrass/pyavcontrol) - Protocol definitions library
+- [ha-avcontrol-transport](https://github.com/rsnodgrass/ha-avcontrol-transport) - Home Assistant integration

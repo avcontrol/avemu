@@ -1,21 +1,78 @@
-MIT License
+Business Source License 1.1
 
-Copyright (c) 2023 Ryan Snodgrass
+License text copyright (c) 2017 MariaDB Corporation Ab.
+“Business Source License” is a trademark of MariaDB Corporation Ab.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+-----------------------------------------------------------------------
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Parameters
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+Licensor:        Ryan Snodgrass
+Licensed Work:   AVControl (including all subprojects, libraries, generators,
+                 protocol definitions, YAML files, avemu, and associated tooling)
+
+Additional Use Grant:
+    The Licensed Work may be used, modified, and distributed without charge
+    for the following purposes:
+
+    - Personal, non-commercial, or hobby use
+    - Home or residential use
+    - Educational or academic use
+    - Use by individuals operating Home Assistant or similar home automation
+      systems, provided no fee is charged for installation, configuration,
+      testing, or support
+    - Use in open-source or community projects that do not generate commercial
+      revenue, excluding use by for-profit organizations or in connection with
+      commercial activities, which require a Commercial License
+
+    All other uses require a Commercial License from the Licensor.
+
+Change Date:
+    The Change Date for each version of the Licensed Work is twenty (20) years
+    from the date that version is first made publicly available.
+
+Change License:
+    Apache License, Version 2.0
+
+-----------------------------------------------------------------------
+
+Terms
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work,
+subject to the terms and conditions of this License.
+
+For purposes of this License, “Commercial Use” includes, but is not limited to:
+
+- Charging a fee for installing, configuring, testing, or supporting systems
+  that use the Licensed Work
+- Using the Licensed Work as part of a paid service, product, or subscription
+- Using the Licensed Work for commercial AV system design, integration,
+  validation, or commissioning
+- Using the Licensed Work for internal development, testing, CI, or QA by a
+  for-profit organization
+- Using the Licensed Work to develop, test, or validate commercial hardware,
+  drivers, firmware, or software products
+- Distributing or embedding the Licensed Work or its outputs (including
+  generated protocol definitions or YAML files) as part of a commercial
+  offering
+
+Commercial Use requires a valid, active Commercial License obtained from the
+Licensor.
+
+Production use of the Licensed Work for Commercial Use without such a license
+is prohibited.
+
+On the Change Date, this License will automatically convert to the Change
+License specified above.
+
+-----------------------------------------------------------------------
+
+Disclaimer of Warranty
+
+THE LICENSED WORK IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
