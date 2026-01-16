@@ -15,10 +15,11 @@ testing client libraries and Home Assistant integrations without requiring physi
 
 Key features:
 
-- **Stateful emulation** - Maintains device state (power, volume, playback) between commands
 - **Protocol-accurate responses** - Uses pyavcontrol YAML definitions for exact response formats
+- **Best-effort state tracking** - Maintains device state between commands (see limitations below)
 - **Multiple formats** - Supports both slash (`mcintosh/mx160`) and underscore (`mcintosh_mx160`) model IDs
 - **Auto port detection** - Uses device's default IP port when available
+- **Interactive TUI** - Rich terminal interface with protocol browser, help (`?`), and license (`L`) views
 
 ## How It Works
 
@@ -150,6 +151,39 @@ for the complete list. Devices are defined in YAML format - contributions welcom
 | Trinnov      | Altitude32          |
 | HDFury       | VRROOM              |
 | ...and more  |                     |
+
+## Limitations
+
+> **Important:** AVEmu is a protocol testing tool, not a perfect hardware emulator.
+
+AVEmu validates that commands send valid protocol data and that responses can be parsed correctly. However, state tracking is **best-effort only** and may not match real hardware behavior.
+
+### What AVEmu is for
+
+- **Protocol send/receive validation** - Verify your integration sends correctly formatted commands
+- **Response parsing testing** - Ensure your code handles valid response formats
+- **Integration development** - Build and test without physical hardware
+- **CI/CD automated testing** - Include protocol tests in your test suite
+
+### What AVEmu is NOT for
+
+- **Exact device behavior validation** - Real devices have nuances AVEmu doesn't emulate
+- **State machine correctness** - Setting `volume=20` then querying may not return `20`
+- **Timing-sensitive operations** - AVEmu responds immediately without realistic delays
+- **Complex device logic** - Features like input auto-switching, protection circuits, etc.
+
+### TUI Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `i` | Protocol information panel |
+| `?` | Help / limitations |
+| `L` | View license |
+| `j/k` or `↑/↓` | Navigate |
+| `/` | Search (in info panel) |
+| `Enter` | Show details |
+| `ESC` | Close panel |
+| `q` | Quit |
 
 ## Support
 

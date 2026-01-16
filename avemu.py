@@ -84,11 +84,42 @@ class TUIState:
     """State for TUI panels and navigation."""
     info_panel_visible: bool = False
     detail_popup_visible: bool = False
+    help_panel_visible: bool = False
+    license_panel_visible: bool = False
     search_active: bool = False
     search_query: str = ''
     scroll_offset: int = 0
     selected_log_idx: int = -1  # -1 = no selection, 0+ = selected row from bottom
     selected_cmd_idx: int = 0
+    license_scroll_offset: int = 0
+
+
+# emulator limitations text (shown with ? key)
+LIMITATIONS_TEXT = """
+AVEmu is a protocol testing tool, not a perfect hardware emulator.
+
+PURPOSE:
+  • Test that commands send valid protocol data
+  • Verify response parsing works correctly
+  • Develop integrations without physical hardware
+
+LIMITATIONS:
+  • State tracking is best-effort only
+  • Setting volume=20, then querying may not return 20
+  • Not all protocol commands affect emulated state
+  • Complex device behaviors are not simulated
+  • Timing and delays differ from real hardware
+
+USE FOR:
+  ✓ Protocol send/receive validation
+  ✓ Integration development and testing
+  ✓ CI/CD automated testing
+
+DO NOT USE FOR:
+  ✗ Validating exact device behavior
+  ✗ Testing timing-sensitive operations
+  ✗ Verifying state machine correctness
+"""
 
 
 _tui_state = TUIState()
@@ -372,7 +403,11 @@ def handle_key(key: str | None, protocol: ProtocolDefinition) -> bool:
             handle_navigation('down')
             return False
         elif key == '\x1b':  # just escape
-            if _tui_state.detail_popup_visible:
+            if _tui_state.help_panel_visible:
+                _tui_state.help_panel_visible = False
+            elif _tui_state.license_panel_visible:
+                _tui_state.license_panel_visible = False
+            elif _tui_state.detail_popup_visible:
                 _tui_state.detail_popup_visible = False
             elif _tui_state.search_active:
                 _tui_state.search_active = False
@@ -382,6 +417,17 @@ def handle_key(key: str | None, protocol: ProtocolDefinition) -> bool:
             else:
                 _tui_state.selected_log_idx = -1
             return False
+
+    # help/limitations panel toggle (?)
+    if key == '?':
+        _tui_state.help_panel_visible = not _tui_state.help_panel_visible
+        return False
+
+    # license panel toggle (L)
+    if key in ('L', 'l') and not _tui_state.search_active:
+        _tui_state.license_panel_visible = not _tui_state.license_panel_visible
+        _tui_state.license_scroll_offset = 0
+        return False
 
     # info panel toggle
     if key == 'i':
@@ -399,9 +445,15 @@ def handle_key(key: str | None, protocol: ProtocolDefinition) -> bool:
         _tui_state.search_query = ''
         return False
 
-    # navigation keys
+    # navigation keys (also scroll license panel)
     if key in ('j', 'k'):
-        handle_navigation('down' if key == 'j' else 'up')
+        if _tui_state.license_panel_visible:
+            if key == 'j':
+                _tui_state.license_scroll_offset += 1
+            else:
+                _tui_state.license_scroll_offset = max(0, _tui_state.license_scroll_offset - 1)
+        else:
+            handle_navigation('down' if key == 'j' else 'up')
         return False
 
     # enter - show detail
@@ -599,21 +651,21 @@ def run_with_rich_tui(
             error_count = _stats['errors']
 
         footer = Text()
-        footer.append('Commands: ', style='dim')
+        footer.append('Cmds: ', style='dim')
         footer.append(f'{cmd_count}', style='cyan bold')
-        footer.append('  •  ', style='dim')
-        footer.append('Errors: ', style='dim')
+        footer.append(' Err: ', style='dim')
         footer.append(f'{error_count}', style='red bold' if error_count > 0 else 'dim')
-        footer.append('  •  ', style='dim')
-        footer.append('Connections: ', style='dim')
+        footer.append(' Conn: ', style='dim')
         footer.append(f'{conn_count}', style='cyan bold')
-        footer.append('  •  ', style='dim')
+        footer.append('  ', style='dim')
         footer.append('[i]', style='bold yellow')
-        footer.append(' Protocol  ', style='dim')
-        footer.append('[Ctrl+C]', style='bold red')
+        footer.append(' Protocol ', style='dim')
+        footer.append('[?]', style='bold yellow')
+        footer.append(' Help ', style='dim')
+        footer.append('[L]', style='bold yellow')
+        footer.append(' License ', style='dim')
+        footer.append('[q]', style='bold red')
         footer.append(' Quit', style='dim')
-        footer.append('  •  ', style='dim')
-        footer.append('© 2026 Ryan Snodgrass', style='dim')
 
         return Panel(footer, style='dim')
 
@@ -879,7 +931,111 @@ def run_with_rich_tui(
             border_style='cyan',
         )
 
+    def render_help_panel() -> Panel:
+        """Render the emulator limitations/help panel."""
+        content_parts = []
+
+        header = Text()
+        header.append('Emulator Limitations', style='bold yellow')
+        header.append('                           ', style='dim')
+        header.append('[?/ESC]', style='bold yellow')
+        header.append(' Close', style='dim')
+        content_parts.append(header)
+        content_parts.append(Text('─' * 60, style='dim'))
+
+        for line in LIMITATIONS_TEXT.strip().split('\n'):
+            line_text = Text()
+            if line.startswith('PURPOSE:') or line.startswith('LIMITATIONS:') or line.startswith('USE FOR:') or line.startswith('DO NOT USE FOR:'):
+                line_text.append(line, style='bold cyan')
+            elif line.strip().startswith('✓'):
+                line_text.append(line, style='green')
+            elif line.strip().startswith('✗'):
+                line_text.append(line, style='red')
+            elif line.strip().startswith('•'):
+                line_text.append(line, style='white')
+            else:
+                line_text.append(line, style='dim' if not line.strip() else 'white')
+            content_parts.append(line_text)
+
+        content_parts.append(Text(''))
+        content_parts.append(Text('[L] View License', style='dim'))
+
+        return Panel(
+            Group(*content_parts),
+            title='[bold yellow]Help[/bold yellow]',
+            border_style='yellow',
+        )
+
+    def render_license_panel() -> Panel:
+        """Render the license panel with scrolling."""
+        content_parts = []
+
+        header = Text()
+        header.append('License', style='bold magenta')
+        header.append('                              ', style='dim')
+        header.append('[L/ESC]', style='bold yellow')
+        header.append(' Close  ', style='dim')
+        header.append('[j/k]', style='bold yellow')
+        header.append(' Scroll', style='dim')
+        content_parts.append(header)
+        content_parts.append(Text('─' * 70, style='dim'))
+
+        # load license from file
+        license_text = ''
+        try:
+            from pathlib import Path
+            license_path = Path(__file__).parent / 'LICENSE'
+            if license_path.exists():
+                license_text = license_path.read_text()
+            else:
+                license_text = 'LICENSE file not found.'
+        except Exception:
+            license_text = 'Could not load LICENSE file.'
+
+        lines = license_text.split('\n')
+        visible_lines = 18
+        start = _tui_state.license_scroll_offset
+        end = min(start + visible_lines, len(lines))
+
+        for line in lines[start:end]:
+            line_text = Text()
+            if line.startswith('Business Source License') or line.startswith('Parameters') or line.startswith('Terms') or line.startswith('Disclaimer'):
+                line_text.append(line, style='bold cyan')
+            elif line.startswith('-'):
+                line_text.append(line, style='dim')
+            elif line.strip().startswith('✅') or line.strip().startswith('- ✅'):
+                line_text.append(line, style='green')
+            elif line.strip().startswith('💼') or line.strip().startswith('- 💼'):
+                line_text.append(line, style='yellow')
+            else:
+                line_text.append(line, style='white')
+            content_parts.append(line_text)
+
+        # scroll indicator
+        if len(lines) > visible_lines:
+            scroll_text = Text()
+            scroll_text.append(f'\nLine {start + 1}-{end} of {len(lines)}', style='dim')
+            if end < len(lines):
+                scroll_text.append(' [j] More ↓', style='dim')
+            if start > 0:
+                scroll_text.append(' [k] Back ↑', style='dim')
+            content_parts.append(scroll_text)
+
+        return Panel(
+            Group(*content_parts),
+            title='[bold magenta]License[/bold magenta]',
+            border_style='magenta',
+        )
+
     def generate_display() -> Layout | Panel:
+        # help panel takes precedence
+        if _tui_state.help_panel_visible:
+            return render_help_panel()
+
+        # license panel
+        if _tui_state.license_panel_visible:
+            return render_license_panel()
+
         # detail popup takes precedence
         if _tui_state.detail_popup_visible:
             return render_detail_popup()
