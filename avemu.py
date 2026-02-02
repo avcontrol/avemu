@@ -356,8 +356,27 @@ def get_default_port(protocol: ProtocolDefinition) -> int | None:
 
 
 def list_supported_protocols(library: ProtocolLibrary) -> None:
-    """Display all supported protocols in formatted columns."""
-    protocols = library.list_protocols()
+    """Display all supported protocols in formatted columns.
+
+    Only shows simple protocols (text-based, no authentication) that are
+    compatible with avemu's text-based emulation.
+    """
+    all_protocols = library.list_protocols()
+
+    # Filter to only simple protocols compatible with text emulation
+    protocols = []
+    excluded_count = 0
+    for p in all_protocols:
+        try:
+            proto = library.load(p)
+            if proto.is_simple_protocol():
+                protocols.append(p)
+            else:
+                excluded_count += 1
+        except Exception:
+            # Skip protocols that fail to load
+            excluded_count += 1
+
     display_list = set()
     for p in protocols:
         display_list.add(p)
@@ -365,7 +384,11 @@ def list_supported_protocols(library: ProtocolLibrary) -> None:
 
     print('\nModels supported by avemu:\n')
     print(format_data_into_columns(sorted(display_list)))
-    print('\nUse either format: mcintosh/mx160 or mcintosh_mx160\n')
+    print('\nUse either format: mcintosh/mx160 or mcintosh_mx160')
+    if excluded_count > 0:
+        print(f'({excluded_count} binary/authenticated protocols excluded)\n')
+    else:
+        print()
 
 
 # ============================================================================
@@ -1208,6 +1231,11 @@ def main() -> None:
         protocol.device.manufacturer if protocol.device else 'unknown',
         protocol.device.model if protocol.device else 'unknown',
     )
+
+    # Warn if protocol is not simple (binary or authenticated)
+    if not protocol.is_simple_protocol():
+        print(f'Warning: {args.model} uses binary or authenticated protocol.')
+        print('Text-based emulation may not work correctly.')
 
     emulator = EmulatorClient(protocol)
 
