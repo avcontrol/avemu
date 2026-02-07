@@ -200,8 +200,8 @@ AVEmu is released under the Business Source License (BSL).
 - ✅ Free for Home Assistant users who are not charging for services
 - 💼 Paid license required if you use AVEmu commercially
 
-If you make money using AVEmu, we ask that you support the project by
-purchasing a commercial license.
+If you make money using AVEmu, we ask that you [support the project by
+purchasing a commercial license](https://av-control.lemonsqueezy.com/).
 
 ## See Also
 

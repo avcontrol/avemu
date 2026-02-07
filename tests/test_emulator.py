@@ -1,8 +1,9 @@
 """Integration tests for avemu emulator with pyavcontrol."""
 
-import pytest
+from __future__ import annotations
 
 from pyavcontrol import EmulatorClient, ProtocolLibrary
+from pyavcontrol.schema import ProtocolDefinition
 
 
 class TestProtocolLibrary:
@@ -14,37 +15,55 @@ class TestProtocolLibrary:
         assert len(protocols) > 0
         assert all('/' in p for p in protocols)
 
-    def test_load_protocol_slash_format(self, library: ProtocolLibrary) -> None:
+    def test_load_protocol_slash_format(
+        self,
+        library: ProtocolLibrary,
+        loadable_protocol_id: str,
+    ) -> None:
         """Test loading protocol with slash format."""
-        protocol = library.load('mcintosh/mx160')
+        protocol = library.load(loadable_protocol_id)
         assert protocol is not None
         assert protocol.device is not None
 
-    def test_protocol_has_device_info(self, mcintosh_protocol) -> None:
+    def test_protocol_has_device_info(
+        self,
+        sample_protocol: ProtocolDefinition,
+    ) -> None:
         """Test that protocol has device information."""
-        assert mcintosh_protocol.device is not None
-        assert mcintosh_protocol.device.manufacturer == 'McIntosh'
-        assert 'MX' in mcintosh_protocol.device.model
+        assert sample_protocol.device is not None
+        assert isinstance(sample_protocol.device.manufacturer, str)
+        assert len(sample_protocol.device.manufacturer) > 0
+        assert isinstance(sample_protocol.device.model, str)
+        assert len(sample_protocol.device.model) > 0
 
 
 class TestEmulatorClient:
     """Test EmulatorClient functionality."""
 
-    def test_emulator_creation(self, mcintosh_protocol) -> None:
+    def test_emulator_creation(
+        self,
+        sample_protocol: ProtocolDefinition,
+    ) -> None:
         """Test that emulator can be created."""
-        emulator = EmulatorClient(mcintosh_protocol)
+        emulator = EmulatorClient(sample_protocol)
         assert emulator is not None
         assert emulator.state is not None
 
-    def test_emulator_has_protocol(self, mcintosh_emulator: EmulatorClient) -> None:
+    def test_emulator_has_protocol(
+        self,
+        sample_emulator: EmulatorClient,
+    ) -> None:
         """Test that emulator has protocol reference."""
-        assert mcintosh_emulator.protocol is not None
+        assert sample_emulator.protocol is not None
 
     def test_process_command_returns_bytes(
-        self, mcintosh_emulator: EmulatorClient
+        self,
+        sample_emulator: EmulatorClient,
     ) -> None:
         """Test that process_command returns bytes."""
-        response = mcintosh_emulator.process_command(b'!POWER?\r')
+        # send a generic probe; exact command content doesn't matter
+        # since we only check the return type
+        response = sample_emulator.process_command(b'\r')
         assert isinstance(response, bytes)
 
 
@@ -68,12 +87,15 @@ class TestProtocolIdNormalization:
 class TestConnectionSettings:
     """Test connection settings extraction."""
 
-    def test_get_default_port(self, mcintosh_protocol) -> None:
+    def test_get_default_port(
+        self,
+        sample_protocol: ProtocolDefinition,
+    ) -> None:
         """Test extracting default port from protocol."""
         from avemu import get_default_port
 
-        port = get_default_port(mcintosh_protocol)
-        if mcintosh_protocol.connection and mcintosh_protocol.connection.ip:
+        port = get_default_port(sample_protocol)
+        if sample_protocol.connection and sample_protocol.connection.ip:
             assert port is not None
             assert isinstance(port, int)
 

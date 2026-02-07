@@ -11,9 +11,7 @@ import os
 import re
 import socket
 import sys
-import termios
 import threading
-import tty
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
@@ -28,6 +26,7 @@ from pyavcontrol.schema import ProtocolDefinition
 LOG = logging.getLogger(__name__)
 
 DEFAULT_PORT = 4999
+MAX_LOG_DISPLAY = 15
 
 # ============================================================================
 # ERROR DETECTION
@@ -533,13 +532,16 @@ def run_with_rich_tui(
     port: int,
 ) -> None:
     """Run server with beautiful Rich TUI."""
+    import select
+    import termios
+    import tty
+
     from rich.console import Console, Group
     from rich.layout import Layout
     from rich.live import Live
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    import select
 
     console = Console()
     server_socket.setblocking(False)
@@ -628,7 +630,7 @@ def run_with_rich_tui(
 
     def render_commands() -> Panel:
         with _state_lock:
-            recent = list(_command_log)[-15:]
+            recent = list(_command_log)[-MAX_LOG_DISPLAY:]
 
         table = Table(show_header=True, box=None, padding=(0, 1))
         table.add_column('Time', style='dim', width=10)
@@ -1076,7 +1078,6 @@ def run_with_rich_tui(
         layout['footer'].update(render_footer())
         return layout
 
-    # setup terminal for raw input
     stdin_fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(stdin_fd)
 
@@ -1265,7 +1266,11 @@ def main() -> None:
             run_demo_traffic(port)
 
         if args.tui and not args.quiet and sys.stdout.isatty():
-            run_with_rich_tui(server_socket, emulator, protocol, port)
+            if sys.platform == 'win32':
+                LOG.warning('TUI not supported on Windows, using simple mode')
+                run_simple(server_socket, emulator, protocol)
+            else:
+                run_with_rich_tui(server_socket, emulator, protocol, port)
         else:
             run_simple(server_socket, emulator, protocol)
 
