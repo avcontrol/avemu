@@ -26,7 +26,7 @@ See **[../AGENTS.md](../AGENTS.md)** for shared instructions across all avcontro
 
 ```bash
 uv sync
-uv run avemu --device mcintosh/mx160 --port 4999
+uv run avemu mcintosh/mx160
 ```
 
 ### Adding Device Emulation

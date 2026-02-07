@@ -76,23 +76,26 @@ pip install -e .
 ### List Supported Models
 
 ```bash
-python avemu.py --supported
+avemu --supported
 ```
 
 ### Start Emulator
 
 ```bash
-# using slash format (preferred)
-python avemu.py --model mcintosh/mx160
+# just specify the model - TUI launches automatically
+avemu mcintosh/mx160
 
-# using underscore format (backward compatible)
-python avemu.py --model mcintosh_mx160
+# underscore format also works
+avemu mcintosh_mx160
 
 # specify custom port
-python avemu.py --model lyngdorf/cd2 --port 5000
+avemu lyngdorf/cd2 --port 5000
 
-# enable debug logging
-python avemu.py --model mcintosh/mx160 --debug
+# debug logging
+avemu mcintosh/mx160 --debug
+
+# disable TUI for headless / CI use
+avemu mcintosh/mx160 --no-tui
 ```
 
 ### Connect to Emulator
@@ -110,10 +113,8 @@ nc localhost 84
 ## Example Session
 
 ```console
-$ python avemu.py --model mcintosh/mx160
-2025-01-13 laptop __main__ INFO loaded protocol: manufacturer=McIntosh, model=MX160
-2025-01-13 laptop __main__ INFO using device default port: port=84
-2025-01-13 laptop __main__ INFO emulating mcintosh/mx160 on socket://0.0.0.0:84/
+$ avemu mcintosh/mx160
+# TUI launches - shows device state, command log, and protocol info
 
 # In another terminal:
 $ nc localhost 84

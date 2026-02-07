@@ -1156,17 +1156,19 @@ def run_simple(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='avemu - Test server that emulates A/V device protocols'
+        description='avemu - Test server that emulates A/V device protocols',
+        usage='avemu [model] [options]',
+    )
+    parser.add_argument(
+        'model',
+        nargs='?',
+        help='device model (e.g. mcintosh/mx160 or mcintosh_mx160)',
     )
     parser.add_argument(
         '--port',
         help=f"port to listen on (default: device's default or {DEFAULT_PORT})",
         type=int,
         default=DEFAULT_PORT,
-    )
-    parser.add_argument(
-        '--model',
-        help='device model (e.g. mcintosh/mx160 or mcintosh_mx160)',
     )
     parser.add_argument(
         '--supported',
@@ -1184,9 +1186,9 @@ def main() -> None:
         help='verbose logging',
     )
     parser.add_argument(
-        '--tui',
+        '--no-tui',
         action='store_true',
-        help='enable TUI status display (requires terminal)',
+        help='disable TUI (TUI is enabled by default in terminals)',
     )
     parser.add_argument(
         '-q', '--quiet',
@@ -1265,7 +1267,8 @@ def main() -> None:
         if args.demo:
             run_demo_traffic(port)
 
-        if args.tui and not args.quiet and sys.stdout.isatty():
+        use_tui = not args.no_tui and not args.quiet and sys.stdout.isatty()
+        if use_tui:
             if sys.platform == 'win32':
                 LOG.warning('TUI not supported on Windows, using simple mode')
                 run_simple(server_socket, emulator, protocol)

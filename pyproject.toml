@@ -24,7 +24,11 @@ classifiers = [
 dependencies = [
     "coloredlogs>=15.0",
     "pyavcontrol>=1.0.0",
+    "rich>=13.0",
 ]
+
+[project.scripts]
+avemu = "avemu:main"
 
 [project.optional-dependencies]
 dev = [
