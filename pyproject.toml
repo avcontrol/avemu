@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "TCP-based test emulator for A/V equipment RS232 control"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
     { name = "Ryan Snodgrass", email = "rsnodgrass@gmail.com" }
 ]
@@ -13,8 +13,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Home Automation",
@@ -23,7 +21,7 @@ classifiers = [
 
 dependencies = [
     "coloredlogs>=15.0",
-    "pyavcontrol>=1.0.0",
+    "pyavcontrol>=2.0.0",
     "rich>=13.0",
 ]
 
@@ -40,6 +38,9 @@ dev = [
 [project.urls]
 Repository = "https://github.com/rsnodgrass/avemu"
 Issues = "https://github.com/rsnodgrass/avemu/issues"
+
+[tool.uv.sources]
+pyavcontrol = { path = "../avcontrol", editable = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -1,3 +1,3 @@
 coloredlogs
-pyavcontrol>=1.0.0
+pyavcontrol>=2.0.0
 rich>=13.0

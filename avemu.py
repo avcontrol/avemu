@@ -21,7 +21,7 @@ from threading import RLock
 import coloredlogs
 
 from pyavcontrol import EmulatorClient, ProtocolLibrary
-from pyavcontrol.schema import ProtocolDefinition
+from pyavcontrol.schema import Command, CommandGroup, ProtocolDefinition
 
 LOG = logging.getLogger(__name__)
 
@@ -177,6 +177,38 @@ def host_ip4_addresses() -> list[str]:
 # PROTOCOL INFO EXTRACTION
 # ============================================================================
 
+def _extract_single_command(name: str, cmd_def: Command) -> dict:
+    """Extract display info from a single Command definition."""
+    cmd_info = {
+        'name': name,
+        'description': cmd_def.description or '',
+        'category': '',
+        'command_syntax': cmd_def.command or '',
+        'args': {},
+        'state_changes': {},
+        'response_pattern': '',
+        'response_template': '',
+    }
+
+    # args are name -> type reference strings in 2.0
+    if cmd_def.args:
+        for arg_name, arg_type_ref in cmd_def.args.items():
+            cmd_info['args'][arg_name] = {'type': arg_type_ref}
+
+    # state changes
+    if cmd_def.state_change:
+        cmd_info['state_changes'] = dict(cmd_def.state_change)
+
+    # response info
+    if cmd_def.response:
+        if cmd_def.response.template:
+            cmd_info['response_template'] = cmd_def.response.template
+        if cmd_def.response.pattern:
+            cmd_info['response_pattern'] = cmd_def.response.pattern
+
+    return cmd_info
+
+
 def extract_command_info(protocol: ProtocolDefinition) -> list[dict]:
     """Extract command information from protocol definition."""
     commands = []
@@ -184,56 +216,14 @@ def extract_command_info(protocol: ProtocolDefinition) -> list[dict]:
     if not protocol.commands:
         return commands
 
-    for name, cmd_def in protocol.commands.items():
-        cmd_info = {
-            'name': name,
-            'description': '',
-            'category': '',
-            'command_syntax': '',
-            'args': {},
-            'state_changes': {},
-            'response_pattern': '',
-            'response_template': '',
-        }
-
-        # basic info
-        if hasattr(cmd_def, 'description'):
-            cmd_info['description'] = cmd_def.description or ''
-
-        # command syntax (the actual string to send)
-        if hasattr(cmd_def, 'command'):
-            cmd_info['command_syntax'] = cmd_def.command or ''
-
-        # arguments with types/ranges
-        if hasattr(cmd_def, 'args') and cmd_def.args:
-            for arg_name, arg_def in cmd_def.args.items():
-                arg_info = {'type': 'unknown'}
-                if hasattr(arg_def, 'type'):
-                    arg_info['type'] = arg_def.type or 'unknown'
-                if hasattr(arg_def, 'min'):
-                    arg_info['min'] = arg_def.min
-                if hasattr(arg_def, 'max'):
-                    arg_info['max'] = arg_def.max
-                if hasattr(arg_def, 'default'):
-                    arg_info['default'] = arg_def.default
-                cmd_info['args'][arg_name] = arg_info
-
-        # state changes this command makes
-        if hasattr(cmd_def, 'state_change') and cmd_def.state_change:
-            cmd_info['state_changes'] = dict(cmd_def.state_change)
-        elif hasattr(cmd_def, 'updates') and cmd_def.updates:
-            cmd_info['state_changes'] = dict(cmd_def.updates)
-
-        # response info
-        if hasattr(cmd_def, 'response_pattern'):
-            cmd_info['response_pattern'] = cmd_def.response_pattern or ''
-        if hasattr(cmd_def, 'response') and cmd_def.response:
-            if hasattr(cmd_def.response, 'template'):
-                cmd_info['response_template'] = cmd_def.response.template or ''
-            if hasattr(cmd_def.response, 'pattern') and not cmd_info['response_pattern']:
-                cmd_info['response_pattern'] = cmd_def.response.pattern or ''
-
-        commands.append(cmd_info)
+    for name, cmd_or_group in protocol.commands.items():
+        if isinstance(cmd_or_group, CommandGroup):
+            for action_name, cmd_def in cmd_or_group.actions.items():
+                commands.append(
+                    _extract_single_command(f'{name}.{action_name}', cmd_def)
+                )
+        else:
+            commands.append(_extract_single_command(name, cmd_or_group))
 
     # sort by name for consistent display
     commands.sort(key=lambda x: x['name'])
