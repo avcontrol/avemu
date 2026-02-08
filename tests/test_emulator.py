@@ -66,6 +66,40 @@ class TestEmulatorClient:
         response = sample_emulator.process_command(b'\r')
         assert isinstance(response, bytes)
 
+    def test_response_ends_with_protocol_eol(
+        self,
+        sample_emulator: EmulatorClient,
+        sample_protocol: ProtocolDefinition,
+    ) -> None:
+        """Test that every response ends with protocol-defined response_eol.
+
+        TCP clients use the EOL delimiter to know when a response is
+        complete. Without it, clients buffer forever and timeout.
+        """
+        response_eol = sample_protocol.protocol.response_eol or '\r'
+        eol_bytes = response_eol.encode('ascii')
+
+        # any command (valid or not) should produce a response ending with EOL
+        response = sample_emulator.process_command(b'\r')
+        assert response.endswith(eol_bytes), (
+            f'response {response!r} does not end with {eol_bytes!r}'
+        )
+
+    def test_response_eol_on_valid_command(
+        self,
+        library: ProtocolLibrary,
+    ) -> None:
+        """Test that a recognized command response includes response_eol."""
+        protocol = library.load('mcintosh/mx122')
+        emulator = EmulatorClient(protocol)
+
+        response = emulator.process_command(b'!POFF\r')
+        assert response.endswith(b'\r'), (
+            f'response {response!r} should end with \\r'
+        )
+        # response body should be present before the delimiter
+        assert len(response) > 1
+
 
 class TestProtocolIdNormalization:
     """Test protocol ID format handling."""
