@@ -77,15 +77,20 @@ class TestEmulatorClient:
 
         TCP clients use the EOL delimiter to know when a response is
         complete. Without it, clients buffer forever and timeout.
+
+        Protocols with IGNORED or TIMEOUT framing return empty bytes
+        for unrecognized commands, which is correct behavior.
         """
         response_eol = sample_protocol.protocol.response_eol or '\r'
         eol_bytes = response_eol.encode('ascii')
 
         # any command (valid or not) should produce a response ending with EOL
+        # unless the protocol silently ignores invalid commands (empty response)
         response = sample_emulator.process_command(b'\r')
-        assert response.endswith(eol_bytes), (
-            f'response {response!r} does not end with {eol_bytes!r}'
-        )
+        if len(response) > 0:
+            assert response.endswith(eol_bytes), (
+                f'response {response!r} does not end with {eol_bytes!r}'
+            )
 
     def test_response_eol_on_valid_command(
         self,
@@ -531,6 +536,136 @@ class TestXantechMX88ai:
         """MX88ai ignores invalid commands (returns empty bytes)."""
         response = emulator.process_command(b'XYZGARBAGE+')
         assert response == b''
+
+
+class TestOnkyoEmbeddedEol:
+    """Test Onkyo ISCP commands with EOL embedded in command templates.
+
+    Onkyo commands like '!1PWRQSTN\\r' include \\r in the template itself,
+    which is also the command_eol. The match pattern must strip the
+    embedded EOL to match correctly.
+    """
+
+    @pytest.fixture
+    def emulator(self, library: ProtocolLibrary) -> EmulatorClient:
+        return EmulatorClient(library.load('onkyo/tx-nr6100'))
+
+    @pytest.fixture
+    def protocol(self, library: ProtocolLibrary) -> ProtocolDefinition:
+        return library.load('onkyo/tx-nr6100')
+
+    def test_power_query_matches(self, emulator: EmulatorClient) -> None:
+        """Power query command with embedded \\r should match."""
+        response = emulator.process_command(b'!1PWRQSTN\r')
+        decoded = response.decode('ascii', errors='replace')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+
+    def test_volume_query_matches(self, emulator: EmulatorClient) -> None:
+        """Volume query command should match despite embedded \\r in template."""
+        response = emulator.process_command(b'!1MVLQSTN\r')
+        decoded = response.decode('ascii', errors='replace')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+
+    def test_power_on_matches(self, emulator: EmulatorClient) -> None:
+        """Power on command should match."""
+        response = emulator.process_command(b'!1PWR01\r')
+        # should not return error - either OK or empty
+        assert b'ERROR' not in response
+
+    def test_mute_query_matches(self, emulator: EmulatorClient) -> None:
+        """Mute query with embedded \\r should match."""
+        response = emulator.process_command(b'!1AMTQSTN\r')
+        decoded = response.decode('ascii', errors='replace')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+
+
+class TestMRC88ZoneQueryResolution:
+    """Test zone-aware response resolution for flat commands.
+
+    MRC88 queries like ?1VO should resolve zone1_volume from state
+    and substitute it into the response pattern as 'volume'.
+    """
+
+    @pytest.fixture
+    def emulator(self, library: ProtocolLibrary) -> EmulatorClient:
+        return EmulatorClient(library.load('xantech/mrc88'))
+
+    def test_volume_query_resolves_zone_value(
+        self, emulator: EmulatorClient
+    ) -> None:
+        """Volume query for zone 1 should return zone1_volume value."""
+        emulator.state.set('zone1_volume', 25)
+        response = emulator.process_command(b'?1VO+')
+        decoded = response.decode('ascii')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+        assert '25' in decoded
+
+    def test_volume_query_zone2(self, emulator: EmulatorClient) -> None:
+        """Volume query for zone 2 should return zone2_volume value."""
+        emulator.state.set('zone2_volume', 42)
+        response = emulator.process_command(b'?2VO+')
+        decoded = response.decode('ascii')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+        assert '42' in decoded
+
+    def test_source_query_resolves_zone_value(
+        self, emulator: EmulatorClient
+    ) -> None:
+        """Source query for zone 1 should return zone1_source value."""
+        emulator.state.set('zone1_source', 3)
+        response = emulator.process_command(b'?1SS+')
+        decoded = response.decode('ascii')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+        assert '3' in decoded
+
+    def test_mute_query_resolves_zone_value(
+        self, emulator: EmulatorClient
+    ) -> None:
+        """Mute query for zone 1 should return zone1_mute value."""
+        emulator.state.set('zone1_mute', 1)
+        response = emulator.process_command(b'?1MU+')
+        decoded = response.decode('ascii')
+        assert '(?P<' not in decoded, f'raw regex in response: {decoded!r}'
+        assert '1' in decoded
+
+
+class TestAnthemBoolEncoding:
+    """Test that bool state values are encoded as 0/1 for int-typed fields.
+
+    Anthem power state is stored as bool (True/False) but the response
+    pattern expects 0/1. The encoder must convert bools to ints.
+    """
+
+    @pytest.fixture
+    def emulator(self, library: ProtocolLibrary) -> EmulatorClient:
+        return EmulatorClient(library.load('anthem/avm60'))
+
+    def test_power_query_returns_0_when_off(
+        self, emulator: EmulatorClient
+    ) -> None:
+        """Power query should return Z1POW0, not Z1POWFalse."""
+        # default state is power=false
+        response = emulator.process_command(b'Z1POW?;')
+        decoded = response.decode('ascii')
+        assert 'False' not in decoded, f'bool literal in response: {decoded!r}'
+        assert 'Z1POW0' in decoded
+
+    def test_power_query_returns_1_when_on(
+        self, emulator: EmulatorClient
+    ) -> None:
+        """Power query should return Z1POW1, not Z1POWTrue."""
+        emulator.state.set('power', True)
+        response = emulator.process_command(b'Z1POW?;')
+        decoded = response.decode('ascii')
+        assert 'True' not in decoded, f'bool literal in response: {decoded!r}'
+        assert 'Z1POW1' in decoded
+
+    def test_mute_query_returns_0(self, emulator: EmulatorClient) -> None:
+        """Mute query should return Z1MUT0, not Z1MUTFalse."""
+        response = emulator.process_command(b'Z1MUT?;')
+        decoded = response.decode('ascii')
+        assert 'False' not in decoded, f'bool literal in response: {decoded!r}'
+        assert 'Z1MUT0' in decoded
 
 
 class TestProtocolIdNormalization:
