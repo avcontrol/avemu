@@ -108,22 +108,21 @@ class TestProtocolCommandsExist:
 
 
 class TestSupportedEncoding:
-    """Protocols should use Python-supported encodings for emulation.
+    """Track protocols that need a non-text emulation engine.
 
-    Some protocols use non-standard encodings that Python's codec system
-    doesn't recognize:
+    Some protocols use encodings that Python's codec system doesn't
+    recognize because they aren't text-based:
 
-    - ``binary``: Protocols using raw binary framing (e.g., Arcam MZ8/MZ12,
-      Lexicon MC series, Parasound HALO, Primare SP series, Crown HiQnet).
-      These send structured byte packets, not text. Emulating them requires
-      a byte-level framing engine rather than string encode/decode.
+    - ``binary``: Raw binary framing (Arcam MZ, Lexicon MC, Parasound
+      HALO, Primare SP, Crown HiQnet, Marantz BD, Theta Casablanca).
+      Structured byte packets with headers, checksums, and fixed-length
+      fields. Requires a byte-level framing engine.
 
-    - ``json``: HTTP/WebSocket-based protocols (e.g., Monoprice Monolith HTP-1)
-      that exchange JSON payloads over HTTP rather than serial byte streams.
+    - ``json``: HTTP/WebSocket APIs (Monoprice Monolith HTP-1).
+      JSON payloads over HTTP, not serial byte streams.
 
-    These protocols are correctly documented but cannot be emulated by the
-    current text-based emulator. A future binary transport layer would be
-    needed to support them.
+    These protocols are correctly documented — this test tracks them
+    so we know which ones need a future binary/HTTP emulation engine.
     """
 
     def test_encodings_supported(self, library: ProtocolLibrary, loadable_ids: list[str]) -> None:
